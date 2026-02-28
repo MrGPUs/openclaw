@@ -76,11 +76,21 @@ describe("createFeishuWSClient proxy handling", () => {
     expect(options?.agent).toBeUndefined();
   });
 
-  it("uses proxy env precedence: https_proxy first, then HTTPS_PROXY, then http_proxy/HTTP_PROXY", () => {
-    process.env.https_proxy = "http://lower-https:8001";
+  it("prefers HTTPS proxy vars over HTTP proxy vars", () => {
     process.env.HTTPS_PROXY = "http://upper-https:8002";
     process.env.http_proxy = "http://lower-http:8003";
     process.env.HTTP_PROXY = "http://upper-http:8004";
+
+    createFeishuWSClient(baseAccount);
+
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledTimes(1);
+    expect(httpsProxyAgentCtorMock).toHaveBeenCalledWith("http://upper-https:8002");
+    const options = firstWsClientOptions();
+    expect(options.agent).toEqual({ proxyUrl: "http://upper-https:8002" });
+  });
+
+  it("accepts lowercase https_proxy when it is the configured HTTPS proxy var", () => {
+    process.env.https_proxy = "http://lower-https:8001";
 
     createFeishuWSClient(baseAccount);
 
