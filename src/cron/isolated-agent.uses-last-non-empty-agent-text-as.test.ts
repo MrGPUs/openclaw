@@ -1,11 +1,34 @@
-import "./isolated-agent.mocks.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CliDeps } from "../cli/deps.js";
+
+// Use vi.hoisted() so mock references exist before vi.mock() factories run.
+// This is required under bun's strict ESM where vi.mock() in an imported
+// side-effect file (isolated-agent.mocks.js) is not hoisted into this file.
+vi.hoisted(() => {
+  // Disable the session-store mtime-based cache for this test suite.
+  // The test helper (writeSessionStoreEntries) writes the store file directly
+  // without invalidating the in-process cache.  When two writes land within the
+  // same filesystem-timestamp tick, loadSessionStore returns stale cached data
+  // — causing the model-override assertions to read the wrong provider.
+  process.env.OPENCLAW_SESSION_CACHE_TTL_MS = "0";
+});
+
+vi.mock("../agents/pi-embedded.js", () => ({
+  abortEmbeddedPiRun: vi.fn().mockReturnValue(false),
+  runEmbeddedPiAgent: vi.fn(),
+  resolveEmbeddedSessionLane: (key: string) => `session:${key.trim() || "main"}`,
+}));
+vi.mock("../agents/model-catalog.js", () => ({
+  loadModelCatalog: vi.fn(),
+}));
+vi.mock("../agents/subagent-announce.js", () => ({
+  runSubagentAnnounceFlow: vi.fn(),
+}));
 import { loadModelCatalog } from "../agents/model-catalog.js";
 import { runEmbeddedPiAgent } from "../agents/pi-embedded.js";
-import type { CliDeps } from "../cli/deps.js";
 import { runCronIsolatedAgentTurn } from "./isolated-agent.js";
 import {
   makeCfg,
