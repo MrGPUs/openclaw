@@ -33,6 +33,7 @@ describe("diffs plugin registration", () => {
       resolvePath(input: string) {
         return input;
       },
+      resetSession: async () => ({ ok: false as const, key: "", error: "not implemented" }),
       on,
     });
 
@@ -101,6 +102,7 @@ describe("diffs plugin registration", () => {
       resolvePath(input: string) {
         return input;
       },
+      resetSession: async () => ({ ok: false as const, key: "", error: "not implemented" }),
       on() {},
     });
 

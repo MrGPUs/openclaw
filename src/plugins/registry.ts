@@ -140,6 +140,19 @@ export type PluginRegistryParams = {
   runtime: PluginRuntime;
 };
 
+// Stability safeguard: prevents infinite reset loops from plugin hooks
+const resetCooldownMap = new Map<string, number>();
+const RESET_COOLDOWN_MS = 5_000;
+
+/** Remove expired entries so the cooldown map doesn't grow without bound. */
+function evictExpiredCooldowns(now: number): void {
+  for (const [k, ts] of resetCooldownMap) {
+    if (now - ts >= RESET_COOLDOWN_MS) {
+      resetCooldownMap.delete(k);
+    }
+  }
+}
+
 export function createEmptyPluginRegistry(): PluginRegistry {
   return {
     plugins: [],
@@ -526,6 +539,51 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
       registerService: (service) => registerService(record, service),
       registerCommand: (command) => registerCommand(record, command),
       resolvePath: (input: string) => resolveUserPath(input),
+      resetSession: async (key: string, reason?: "new" | "reset") => {
+        const trimmedKey = key.trim();
+        if (!trimmedKey) {
+          return { ok: false, key: "", error: "key required" };
+        }
+
+        // Lazy imports to avoid circular dependency at module load time
+        const [{ resetSessionByKey }, { resolveSessionStoreKey }, { loadConfig }] =
+          await Promise.all([
+            import("../gateway/session-ops.js"),
+            import("../gateway/session-utils.js"),
+            import("../config/config.js"),
+          ]);
+
+        try {
+          // Canonicalize key so cooldown works regardless of input casing/format
+          const cfg = loadConfig();
+          const canonicalKey = resolveSessionStoreKey({ cfg, sessionKey: trimmedKey });
+
+          // Per-key cooldown to prevent infinite reset loops
+          const now = Date.now();
+          evictExpiredCooldowns(now);
+          const lastReset = resetCooldownMap.get(canonicalKey) ?? 0;
+          if (now - lastReset < RESET_COOLDOWN_MS) {
+            return {
+              ok: false,
+              key: canonicalKey,
+              error: `reset cooldown: last reset was ${now - lastReset}ms ago (minimum ${RESET_COOLDOWN_MS}ms)`,
+            };
+          }
+          resetCooldownMap.set(canonicalKey, now);
+
+          const result = await resetSessionByKey({
+            key: trimmedKey,
+            reason,
+            commandSource: `plugin:${record.id}`,
+          });
+          if (result.ok) {
+            return { ok: true, key: result.key, sessionId: result.entry.sessionId };
+          }
+          return { ok: false, key: result.key, error: result.error };
+        } catch (err) {
+          return { ok: false, key: trimmedKey, error: String(err) };
+        }
+      },
       on: (hookName, handler, opts) => registerTypedHook(record, hookName, handler, opts),
     };
   };

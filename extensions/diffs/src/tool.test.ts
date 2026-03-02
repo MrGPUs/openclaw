@@ -444,6 +444,7 @@ function createApi(): OpenClawPluginApi {
     resolvePath(input: string) {
       return input;
     },
+    resetSession: async () => ({ ok: false as const, key: "", error: "not implemented" }),
     on() {},
   };
 }

@@ -43,6 +43,7 @@ function createApi(params: {
     resolvePath(input: string) {
       return input;
     },
+    resetSession: async () => ({ ok: false, key: "", error: "not implemented" }),
     on() {},
   };
 }
