@@ -310,4 +310,12 @@ describe("api.resetSession", () => {
 
     expect(mockResetSessionByKey).toHaveBeenCalledWith(expect.objectContaining({ key }));
   });
+
+  it("returns error for non-string key", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testing runtime guard for untyped callers
+    const result = await api.resetSession(42 as any);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("key must be a string");
+    expect(mockResetSessionByKey).not.toHaveBeenCalled();
+  });
 });

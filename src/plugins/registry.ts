@@ -540,6 +540,9 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
       registerCommand: (command) => registerCommand(record, command),
       resolvePath: (input: string) => resolveUserPath(input),
       resetSession: async (key: string, reason?: "new" | "reset") => {
+        if (typeof key !== "string") {
+          return { ok: false, key: "", error: "key must be a string" };
+        }
         const trimmedKey = key.trim();
         if (!trimmedKey) {
           return { ok: false, key: "", error: "key required" };
