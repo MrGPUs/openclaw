@@ -61,6 +61,8 @@ export type OpenClawPluginToolContext = {
   agentDir?: string;
   agentId?: string;
   sessionKey?: string;
+  /** Ephemeral session UUID — regenerated on /new and /reset. Use for per-conversation isolation. */
+  sessionId?: string;
   messageChannel?: string;
   agentAccountId?: string;
   /** Trusted sender id from inbound context (runtime-provided, not tool args). */
@@ -482,6 +484,8 @@ export type PluginHookMessageSentEvent = {
 export type PluginHookToolContext = {
   agentId?: string;
   sessionKey?: string;
+  /** Ephemeral session UUID — regenerated on /new and /reset. */
+  sessionId?: string;
   toolName: string;
 };
 
@@ -570,8 +574,7 @@ export type PluginHookSubagentContext = {
 
 export type PluginHookSubagentTargetKind = "subagent" | "acp";
 
-// subagent_spawning hook
-export type PluginHookSubagentSpawningEvent = {
+type PluginHookSubagentSpawnBase = {
   childSessionKey: string;
   agentId: string;
   label?: string;
@@ -584,6 +587,9 @@ export type PluginHookSubagentSpawningEvent = {
   };
   threadRequested: boolean;
 };
+
+// subagent_spawning hook
+export type PluginHookSubagentSpawningEvent = PluginHookSubagentSpawnBase;
 
 export type PluginHookSubagentSpawningResult =
   | {
@@ -620,19 +626,8 @@ export type PluginHookSubagentDeliveryTargetResult = {
 };
 
 // subagent_spawned hook
-export type PluginHookSubagentSpawnedEvent = {
+export type PluginHookSubagentSpawnedEvent = PluginHookSubagentSpawnBase & {
   runId: string;
-  childSessionKey: string;
-  agentId: string;
-  label?: string;
-  mode: "run" | "session";
-  requester?: {
-    channel?: string;
-    accountId?: string;
-    to?: string;
-    threadId?: string | number;
-  };
-  threadRequested: boolean;
 };
 
 // subagent_ended hook
