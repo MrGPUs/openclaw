@@ -13,6 +13,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Docs/security hardening guidance: document Docker `DOCKER-USER` + UFW policy and add cross-linking from Docker install docs for VPS/public-host setups. (#27613) thanks @dorukardahan.
 - Docs/tool-loop detection config keys: align `docs/tools/loop-detection.md` examples and field names with the current `tools.loopDetection` schema to prevent copy-paste validation failures from outdated keys. (#33182) Thanks @Mylszd.
 - Discord/inbound debouncer: skip bot-own MESSAGE_CREATE events before they reach the debounce queue to avoid self-triggered slowdowns in busy servers. Thanks @thewilloftheshadow.
 - Discord/Agent-scoped media roots: pass `mediaLocalRoots` through Discord monitor reply delivery (message + component interaction paths) so local media attachments honor per-agent workspace roots instead of falling back to default global roots. Thanks @thewilloftheshadow.
@@ -20,6 +21,7 @@ Docs: https://docs.openclaw.ai
 - Discord/thread session lifecycle: reset thread-scoped sessions when a thread is archived so reopening a thread starts fresh without deleting transcript history. Thanks @thewilloftheshadow.
 - Discord/presence defaults: send an online presence update on ready when no custom presence is configured so bots no longer appear offline by default. Thanks @thewilloftheshadow.
 - Discord/typing cleanup: stop typing indicators after silent/NO_REPLY runs by marking the run complete before dispatch idle cleanup. Thanks @thewilloftheshadow.
+- Discord/config SecretRef typing: align Discord account token config typing with SecretInput so SecretRef tokens typecheck. (#32490) Thanks @scoootscooob.
 - Discord/voice messages: request upload slots with JSON fetch calls so voice message uploads no longer fail with content-type errors. Thanks @thewilloftheshadow.
 - Discord/voice decoder fallback: drop the native Opus dependency and use opusscript for voice decoding to avoid native-opus installs. Thanks @thewilloftheshadow.
 - Discord/auto presence health signal: add runtime availability-driven presence updates plus connected-state reporting to improve health monitoring and operator visibility. (#33277) Thanks @thewilloftheshadow.
@@ -389,6 +391,10 @@ Docs: https://docs.openclaw.ai
 - Infra/fs-safe: sanitize directory-read failures so raw `EISDIR` text never leaks to messaging surfaces, with regression tests for both root-scoped and direct safe reads. Landed from contributor PR #31205 by @polooooo. Thanks @polooooo.
 
 ## Unreleased
+
+### Changes
+
+- Docs/Contributing: require before/after screenshots for UI or visual PRs in the pre-PR checklist. (#32206) Thanks @hydro13.
 
 ### Fixes
 
