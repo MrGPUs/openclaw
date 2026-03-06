@@ -136,6 +136,9 @@ describe("api.resetSession", () => {
   it("returns error for empty key", async () => {
     const result = await resetSession("");
     expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected resetSession to fail for empty key");
+    }
     expect(result.error).toBe("key required");
     expect(result.key).toBe("");
     expect(mockResetSessionByKey).not.toHaveBeenCalled();
@@ -144,6 +147,9 @@ describe("api.resetSession", () => {
   it("returns error for whitespace-only key", async () => {
     const result = await resetSession("   ");
     expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected resetSession to fail for whitespace-only key");
+    }
     expect(result.error).toBe("key required");
     expect(mockResetSessionByKey).not.toHaveBeenCalled();
   });
@@ -153,6 +159,9 @@ describe("api.resetSession", () => {
     setupSuccessMock(key);
     const result = await resetSession(key);
     expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(`expected resetSession to succeed: ${result.error}`);
+    }
     expect(result.key).toBe(key);
     expect(result.sessionId).toBeDefined();
   });
@@ -204,6 +213,9 @@ describe("api.resetSession", () => {
 
     const result = await resetSession(key);
     expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected resetSession to fail when helper returns not ok");
+    }
     expect(result.error).toContain("still active");
   });
 
@@ -234,6 +246,9 @@ describe("api.resetSession", () => {
 
     const result2 = await resetSession(key);
     expect(result2.ok).toBe(false);
+    if (result2.ok) {
+      throw new Error("expected second reset to be blocked by cooldown");
+    }
     expect(result2.error).toContain("reset cooldown");
     // resetSessionByKey should only have been called once (first call)
     expect(mockResetSessionByKey).toHaveBeenCalledTimes(1);
@@ -260,6 +275,9 @@ describe("api.resetSession", () => {
 
     const result = await resetSession(key);
     expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected resetSession to fail when helper throws");
+    }
     expect(result.error).toContain("unexpected failure");
   });
 
@@ -295,6 +313,9 @@ describe("api.resetSession", () => {
 
     const result = await resetSession(key);
     expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(`expected resetSession to succeed: ${result.error}`);
+    }
     expect(result.sessionId).toBe(expectedId);
   });
 
@@ -318,6 +339,9 @@ describe("api.resetSession", () => {
     // Second call with same raw key should hit cooldown via canonical key
     const result2 = await resetSession(rawKey);
     expect(result2.ok).toBe(false);
+    if (result2.ok) {
+      throw new Error("expected second reset to fail due to cooldown");
+    }
     expect(result2.error).toContain("reset cooldown");
     expect(result2.key).toBe(canonicalKey);
   });
@@ -328,6 +352,9 @@ describe("api.resetSession", () => {
 
     const result = await resetSession(key);
     expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected resetSession to fail when helper throws string");
+    }
     expect(result.error).toBe("string error");
   });
 
@@ -343,6 +370,9 @@ describe("api.resetSession", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testing runtime guard for untyped callers
     const result = await resetSession(42 as any);
     expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected resetSession to fail for non-string key");
+    }
     expect(result.error).toBe("key must be a string");
     expect(mockResetSessionByKey).not.toHaveBeenCalled();
   });
