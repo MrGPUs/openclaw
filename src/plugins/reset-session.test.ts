@@ -207,6 +207,24 @@ describe("api.resetSession", () => {
     expect(result.error).toContain("still active");
   });
 
+  it("does not apply cooldown when resetSessionByKey fails", async () => {
+    const key = uniqueKey("cooldown-failure");
+    mockResetSessionByKey
+      .mockResolvedValueOnce({
+        ok: false,
+        key,
+        error: "Session is still active; try again in a moment.",
+      })
+      .mockResolvedValueOnce(mockSuccessResult(key));
+
+    const first = await resetSession(key);
+    expect(first.ok).toBe(false);
+
+    const second = await resetSession(key);
+    expect(second.ok).toBe(true);
+    expect(mockResetSessionByKey).toHaveBeenCalledTimes(2);
+  });
+
   it("cooldown blocks rapid resets on the same key", async () => {
     const key = uniqueKey("cooldown");
     setupSuccessMock(key);

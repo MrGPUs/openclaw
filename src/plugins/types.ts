@@ -254,6 +254,18 @@ export type OpenClawPluginModule =
   | OpenClawPluginDefinition
   | ((api: OpenClawPluginApi) => void | Promise<void>);
 
+export type PluginResetSessionResult =
+  | {
+      ok: true;
+      key: string;
+      sessionId: string;
+    }
+  | {
+      ok: false;
+      key: string;
+      error: string;
+    };
+
 export type OpenClawPluginApi = {
   id: string;
   name: string;
@@ -294,15 +306,7 @@ export type OpenClawPluginApi = {
    * @param reason - Optional reason: "new" (default) or "reset"
    * @returns Promise resolving to the reset result
    */
-  resetSession?: (
-    key: string,
-    reason?: "new" | "reset",
-  ) => Promise<{
-    ok: boolean;
-    key: string;
-    sessionId?: string;
-    error?: string;
-  }>;
+  resetSession?: (key: string, reason?: "new" | "reset") => Promise<PluginResetSessionResult>;
   /** Register a lifecycle hook handler */
   on: <K extends PluginHookName>(
     hookName: K,

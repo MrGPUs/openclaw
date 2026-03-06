@@ -618,10 +618,12 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
             import("../config/config.js"),
           ]);
 
+        let canonicalKey: string | undefined;
+        let cooldownArmed = false;
         try {
           // Canonicalize key so cooldown works regardless of input casing/format
           const cfg = loadConfig();
-          const canonicalKey = resolveSessionStoreKey({ cfg, sessionKey: trimmedKey });
+          canonicalKey = resolveSessionStoreKey({ cfg, sessionKey: trimmedKey });
 
           // Per-key cooldown to prevent infinite reset loops
           const now = Date.now();
@@ -635,6 +637,7 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
             };
           }
           resetCooldownMap.set(canonicalKey, now);
+          cooldownArmed = true;
 
           const result = await resetSessionByKey({
             key: trimmedKey,
@@ -642,11 +645,16 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
             commandSource: `plugin:${record.id}`,
           });
           if (result.ok) {
+            resetCooldownMap.set(canonicalKey, Date.now());
             return { ok: true, key: result.key, sessionId: result.entry.sessionId };
           }
+          resetCooldownMap.delete(canonicalKey);
           return { ok: false, key: result.key, error: result.error };
         } catch (err) {
-          return { ok: false, key: trimmedKey, error: String(err) };
+          if (cooldownArmed && canonicalKey) {
+            resetCooldownMap.delete(canonicalKey);
+          }
+          return { ok: false, key: canonicalKey ?? trimmedKey, error: String(err) };
         }
       },
       on: (hookName, handler, opts) =>
