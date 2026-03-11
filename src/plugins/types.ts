@@ -260,6 +260,18 @@ export type OpenClawPluginModule =
   | OpenClawPluginDefinition
   | ((api: OpenClawPluginApi) => void | Promise<void>);
 
+export type PluginResetSessionResult =
+  | {
+      ok: true;
+      key: string;
+      sessionId: string;
+    }
+  | {
+      ok: false;
+      key: string;
+      error: string;
+    };
+
 export type OpenClawPluginApi = {
   id: string;
   name: string;
@@ -297,6 +309,11 @@ export type OpenClawPluginApi = {
     factory: import("../context-engine/registry.js").ContextEngineFactory,
   ) => void;
   resolvePath: (input: string) => string;
+  /**
+   * Reset a session by key, creating a new session ID and archiving the old transcript.
+   * Equivalent to the `sessions.reset` gateway method / `/new` command.
+   */
+  resetSession?: (key: string, reason?: "new" | "reset") => Promise<PluginResetSessionResult>;
   /** Register a lifecycle hook handler */
   on: <K extends PluginHookName>(
     hookName: K,

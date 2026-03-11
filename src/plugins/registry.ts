@@ -151,6 +151,8 @@ type PluginTypedHookPolicy = {
   allowPromptInjection?: boolean;
 };
 
+const inFlightPluginResets = new Set<string>();
+
 const constrainLegacyPromptInjectionHook = (
   handler: PluginHookHandlerMap["before_agent_start"],
 ): PluginHookHandlerMap["before_agent_start"] => {
@@ -164,6 +166,23 @@ const constrainLegacyPromptInjectionHook = (
     return stripPromptMutationFieldsFromLegacyHookResult(result);
   };
 };
+
+function normalizeResetSessionError(error: unknown): string {
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object") {
+    const message = "message" in error ? (error as { message?: unknown }).message : undefined;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+  return "session reset failed";
+}
+
+export function clearInFlightPluginResetsForTesting(): void {
+  inFlightPluginResets.clear();
+}
 
 export function createEmptyPluginRegistry(): PluginRegistry {
   return {
@@ -602,6 +621,61 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
       registerCommand: (command) => registerCommand(record, command),
       registerContextEngine: (id, factory) => registerContextEngine(id, factory),
       resolvePath: (input: string) => resolveUserPath(input),
+      resetSession: async (key, reason) => {
+        if (typeof key !== "string") {
+          return { ok: false, key: "", error: "key required" };
+        }
+        const trimmedKey = key.trim();
+        if (!trimmedKey) {
+          return { ok: false, key: "", error: "key required" };
+        }
+
+        const [{ resolveSessionStoreKey }, { performGatewaySessionReset }] = await Promise.all([
+          import("../gateway/session-utils.js"),
+          import("../gateway/session-reset-service.js"),
+        ]);
+        const canonicalKey = resolveSessionStoreKey({
+          cfg: params.config,
+          sessionKey: trimmedKey,
+        });
+
+        if (inFlightPluginResets.has(canonicalKey)) {
+          return {
+            ok: false,
+            key: canonicalKey,
+            error: `reset already in progress for ${canonicalKey}`,
+          };
+        }
+
+        inFlightPluginResets.add(canonicalKey);
+        try {
+          const result = await performGatewaySessionReset({
+            key: trimmedKey,
+            reason: reason === "reset" ? "reset" : "new",
+            commandSource: `plugin:${record.id}`,
+          });
+          if (!result.ok) {
+            return {
+              ok: false,
+              key: canonicalKey,
+              error: normalizeResetSessionError(result.error),
+            };
+          }
+          return {
+            ok: true,
+            key: result.key,
+            sessionId: result.entry.sessionId,
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            key: canonicalKey,
+            error: normalizeResetSessionError(error),
+          };
+        } finally {
+          inFlightPluginResets.delete(canonicalKey);
+        }
+      },
       on: (hookName, handler, opts) =>
         registerTypedHook(record, hookName, handler, opts, params.hookPolicy),
     };
