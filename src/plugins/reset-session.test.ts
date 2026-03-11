@@ -5,6 +5,7 @@ import type { PluginRuntime } from "./runtime/types.js";
 import type { OpenClawPluginApi, PluginResetSessionResult } from "./types.js";
 
 type SessionResetDeps = {
+  loadConfig: ReturnType<typeof vi.fn>;
   performGatewaySessionReset: ReturnType<typeof vi.fn>;
   resolveGatewaySessionStoreTarget: ReturnType<typeof vi.fn>;
 };
@@ -75,8 +76,10 @@ async function createApiHarness(options?: RegistryImportOptions) {
   const sessionUtils = options?.sessionUtilsImportError
     ? null
     : await import("../gateway/session-utils.js");
+  const configModule = await import("../config/config.js");
 
   const deps: SessionResetDeps = {
+    loadConfig: vi.spyOn(configModule, "loadConfig"),
     performGatewaySessionReset:
       sessionResetService === null
         ? vi.fn()
@@ -114,6 +117,7 @@ function deferred<T>() {
 
 async function createApiWithDefaultMocks() {
   const harness = await createApiHarness();
+  harness.deps.loadConfig.mockReturnValue({} as OpenClawConfig);
   harness.deps.resolveGatewaySessionStoreTarget.mockReturnValue({
     canonicalKey: "agent:main:demo",
   });
@@ -209,6 +213,41 @@ describe("plugin resetSession", () => {
         reason: "reset",
         commandSource: "plugin:demo-plugin",
       });
+    });
+
+    it("uses live config for canonicalization instead of the captured API config", async () => {
+      const { api, deps } = await createApiHarness();
+      const liveConfig = { session: { mainKey: "work" } } as OpenClawConfig;
+      const pending = deferred<{ ok: true; key: string; entry: { sessionId: string } }>();
+
+      deps.loadConfig.mockReturnValue(liveConfig);
+      deps.resolveGatewaySessionStoreTarget.mockImplementation(
+        ({ cfg, key }: { cfg: OpenClawConfig; key: string }) => ({
+          canonicalKey: cfg === liveConfig && key === "agent:ops:MAIN" ? "agent:ops:work" : key,
+        }),
+      );
+      deps.performGatewaySessionReset.mockReturnValue(pending.promise);
+
+      const first = api.resetSession?.("agent:ops:MAIN");
+      const second = await api.resetSession?.("agent:ops:work");
+
+      expect(second).toEqual({
+        ok: false,
+        key: "agent:ops:work",
+        error: "Session reset already in progress for agent:ops:work.",
+      });
+
+      pending.resolve({
+        ok: true,
+        key: "agent:ops:work",
+        entry: { sessionId: "session-live-config" },
+      });
+      await expect(first).resolves.toEqual({
+        ok: true,
+        key: "agent:ops:work",
+        sessionId: "session-live-config",
+      });
+      expect(deps.loadConfig).toHaveBeenCalledTimes(2);
     });
 
     it('falls back to "new" for invalid runtime reason values', async () => {

@@ -225,7 +225,6 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
   });
 
   const createPluginResetSession = (params: {
-    config: OpenClawPluginApi["config"];
     pluginId: string;
   }): NonNullable<OpenClawPluginApi["resetSession"]> => {
     return async (key, reason = "new") => {
@@ -243,14 +242,19 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
         }
 
         const normalizedReason = reason === "reset" ? "reset" : "new";
-        const [{ resolveGatewaySessionStoreTarget }, { performGatewaySessionReset }] =
-          await Promise.all([
-            import("../gateway/session-utils.js"),
-            import("../gateway/session-reset-service.js"),
-          ]);
+        const [
+          { loadConfig },
+          { resolveGatewaySessionStoreTarget },
+          { performGatewaySessionReset },
+        ] = await Promise.all([
+          import("../config/config.js"),
+          import("../gateway/session-utils.js"),
+          import("../gateway/session-reset-service.js"),
+        ]);
+        const liveConfig = loadConfig();
 
         const target = resolveGatewaySessionStoreTarget({
-          cfg: params.config,
+          cfg: liveConfig,
           key: trimmedKey,
         });
         const canonicalKey = target.canonicalKey?.trim();
@@ -704,7 +708,6 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
       registerCommand: (command) => registerCommand(record, command),
       registerContextEngine: (id, factory) => registerContextEngine(id, factory),
       resetSession: createPluginResetSession({
-        config: params.config,
         pluginId: record.id,
       }),
       resolvePath: (input: string) => resolveUserPath(input),
