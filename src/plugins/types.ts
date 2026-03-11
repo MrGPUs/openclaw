@@ -313,7 +313,7 @@ export type OpenClawPluginApi = {
    * Reset a session by key, creating a new session ID and archiving the old transcript.
    * Equivalent to the `sessions.reset` gateway method / `/new` command.
    */
-  resetSession?: (key: string, reason?: "new" | "reset") => Promise<PluginResetSessionResult>;
+  resetSession: (key: string, reason?: "new" | "reset") => Promise<PluginResetSessionResult>;
   /** Register a lifecycle hook handler */
   on: <K extends PluginHookName>(
     hookName: K,
